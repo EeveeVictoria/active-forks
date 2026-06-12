@@ -5,44 +5,11 @@ Requires: pip install PyGithub openpyxl
 """
 
 import os
-import re
 from datetime import datetime
 from github import Github
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-
-
-# Category detection keywords
-CATEGORY_KEYWORDS = {
-    'AI/ML': ['ai', 'agent', 'llm', 'gpt', 'claude', 'machine learning', 'neural', 'deep learning', 'model', 'transformer'],
-    'Prompt Engineering': ['prompt', 'prompting', 'gpt', 'chatgpt', 'claude-code'],
-    'Coding Tools': ['code', 'editor', 'ide', 'cursor', 'copilot', 'coder', 'dev', 'programming'],
-    'Automation': ['automation', 'workflow', 'script', 'bot', 'agent', 'automate'],
-    'Organization': ['organize', 'manager', 'task', 'todo', 'calendar', 'file', 'sort', 'tag'],
-    'Design': ['design', 'ui', 'ux', 'diagram', 'visual', 'draw', 'figma', 'sketch'],
-    'Data': ['data', 'database', 'sql', 'analytics', 'visualization', 'chart', 'graph', 'spreadsheet'],
-    'API/Integration': ['api', 'integration', 'webhook', 'proxy', 'connector', 'sync'],
-    'Productivity': ['productivity', 'noter', 'markdown', 'obsidian', 'docs', 'notebook'],
-    'Remote Work': ['remote', 'job', 'work', 'career'],
-    'System': ['system', 'os', 'terminal', 'shell', 'cli', 'command', 'font', 'theme'],
-    'Web': ['web', 'browser', 'extension', 'chrome', 'firefox', 'website'],
-    'Media': ['music', 'video', 'image', 'photo', 'spotify', 'youtube', 'podcast'],
-    'Security': ['security', 'password', 'auth', 'encryption', 'credential'],
-    'Email': ['email', 'gmail', 'mail'],
-}
-
-
-def detect_category(repo_name, description):
-    """Detect category based on repo name and description."""
-    text = f"{repo_name} {description}".lower()
-    
-    for category, keywords in CATEGORY_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in text:
-                return category
-    
-    return 'Other'
 
 
 def get_forks(username, token=None):
@@ -61,11 +28,8 @@ def get_forks(username, token=None):
             # Get original repo info
             original_repo = repo.source
             
-            category = detect_category(repo.name, repo.description or "")
-            
             forks.append({
                 'name': repo.name,
-                'category': category,
                 'fork_url': repo.html_url,
                 'original_url': original_repo.html_url,
                 'description': repo.description or 'No description',
@@ -112,6 +76,7 @@ def create_excel(forks, username, output_filename='forks_report.xlsx'):
     headers = [
         'Repository Name',
         'Category',
+        'Detailed Category',
         'Your Fork URL',
         'Original Repo URL',
         'Description',
@@ -132,45 +97,53 @@ def create_excel(forks, username, output_filename='forks_report.xlsx'):
         cell.alignment = header_alignment
         cell.border = border
     
-    # Set column widths
+    # Set column widths - B and C snug fit for manual entry
     ws.column_dimensions['A'].width = 22
-    ws.column_dimensions['B'].width = 18
-    ws.column_dimensions['C'].width = 35
+    ws.column_dimensions['B'].width = 18  # Category - snug fit
+    ws.column_dimensions['C'].width = 20  # Detailed Category - snug fit
     ws.column_dimensions['D'].width = 35
-    ws.column_dimensions['E'].width = 40
-    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['E'].width = 35
+    ws.column_dimensions['F'].width = 40
     ws.column_dimensions['G'].width = 12
-    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['H'].width = 12
     ws.column_dimensions['I'].width = 15
-    ws.column_dimensions['J'].width = 12
-    ws.column_dimensions['K'].width = 15
+    ws.column_dimensions['J'].width = 15
+    ws.column_dimensions['K'].width = 12
+    ws.column_dimensions['L'].width = 15
     
     # Write data rows
     for row_num, fork in enumerate(forks, 2):
-        # Repository Name
+        # Column A: Repository Name
         cell = ws.cell(row=row_num, column=1)
         cell.value = fork['name']
         cell.font = data_font
         cell.alignment = data_alignment
         cell.border = border
         
-        # Category
+        # Column B: Category (BLANK for user to fill)
         cell = ws.cell(row=row_num, column=2)
-        cell.value = fork['category']
+        cell.value = ""
         cell.font = data_font
-        cell.alignment = center_alignment
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.border = border
         
-        # Your Fork URL (hyperlink)
+        # Column C: Detailed Category (BLANK for user to fill)
         cell = ws.cell(row=row_num, column=3)
+        cell.value = ""
+        cell.font = data_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = border
+        
+        # Column D: Your Fork URL (hyperlink)
+        cell = ws.cell(row=row_num, column=4)
         cell.value = fork['name']
         cell.hyperlink = fork['fork_url']
         cell.font = Font(color="0366d6", underline="single", size=10)
         cell.alignment = data_alignment
         cell.border = border
         
-        # Original Repo URL (hyperlink)
-        cell = ws.cell(row=row_num, column=4)
+        # Column E: Original Repo URL (hyperlink)
+        cell = ws.cell(row=row_num, column=5)
         repo_display = fork['original_url'].split('/')[-1]
         cell.value = repo_display
         cell.hyperlink = fork['original_url']
@@ -178,50 +151,50 @@ def create_excel(forks, username, output_filename='forks_report.xlsx'):
         cell.alignment = data_alignment
         cell.border = border
         
-        # Description
-        cell = ws.cell(row=row_num, column=5)
+        # Column F: Description
+        cell = ws.cell(row=row_num, column=6)
         cell.value = fork['description']
         cell.font = data_font
         cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
         cell.border = border
         
-        # Stars
-        cell = ws.cell(row=row_num, column=6)
+        # Column G: Stars
+        cell = ws.cell(row=row_num, column=7)
         cell.value = fork['stars']
         cell.font = data_font
         cell.alignment = center_alignment
         cell.border = border
         
-        # Language
-        cell = ws.cell(row=row_num, column=7)
+        # Column H: Language
+        cell = ws.cell(row=row_num, column=8)
         cell.value = fork['language']
         cell.font = data_font
         cell.alignment = center_alignment
         cell.border = border
         
-        # Original Created
-        cell = ws.cell(row=row_num, column=8)
+        # Column I: Original Created
+        cell = ws.cell(row=row_num, column=9)
         cell.value = fork['original_created']
         cell.font = data_font
         cell.alignment = center_alignment
         cell.border = border
         
-        # Fork Created
-        cell = ws.cell(row=row_num, column=9)
+        # Column J: Fork Created
+        cell = ws.cell(row=row_num, column=10)
         cell.value = fork['fork_created']
         cell.font = data_font
         cell.alignment = center_alignment
         cell.border = border
         
-        # Forks Count
-        cell = ws.cell(row=row_num, column=10)
+        # Column K: Forks Count
+        cell = ws.cell(row=row_num, column=11)
         cell.value = fork['forks_count']
         cell.font = data_font
         cell.alignment = center_alignment
         cell.border = border
         
-        # Open Issues
-        cell = ws.cell(row=row_num, column=11)
+        # Column L: Open Issues
+        cell = ws.cell(row=row_num, column=12)
         cell.value = fork['open_issues']
         cell.font = data_font
         cell.alignment = center_alignment
