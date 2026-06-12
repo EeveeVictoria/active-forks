@@ -28,16 +28,20 @@ def get_forks(username, token=None):
     print(f"Fetching forks for {username}...")
     for repo in user.get_repos(type="owner"):
         if repo.fork:
+            # Get original repo info
+            original_repo = repo.source
+            
             forks.append({
                 'name': repo.name,
                 'url': repo.html_url,
                 'description': repo.description or 'No description',
-                'stars': repo.stargazers_count,
+                'stars': original_repo.stargazers_count,  # Stars from original repo
                 'language': repo.language or 'N/A',
-                'last_updated': repo.updated_at.strftime('%Y-%m-%d %H:%M:%S') if repo.updated_at else 'N/A',
+                'last_updated': original_repo.updated_at.strftime('%Y-%m-%d %H:%M:%S') if original_repo.updated_at else 'N/A',  # Last update from original repo
                 'created_at': repo.created_at.strftime('%Y-%m-%d') if repo.created_at else 'N/A',
-                'forks_count': repo.forks_count,
-                'open_issues': repo.open_issues_count,
+                'forks_count': original_repo.forks_count,  # Forks from original repo
+                'open_issues': original_repo.open_issues_count,  # Issues from original repo
+                'original_url': original_repo.html_url,
             })
     
     return sorted(forks, key=lambda x: x['last_updated'], reverse=True)
@@ -84,7 +88,7 @@ def create_pdf(forks, username, output_filename='forks_report.pdf'):
     elements.append(Spacer(1, 0.2*inch))
     
     # Prepare table data
-    table_data = [['Repository', 'Description', 'Stars', 'Language', 'Last Updated']]
+    table_data = [['Repository', 'Description', 'Stars (Original)', 'Language', 'Last Updated (Original)']]
     
     for fork in forks:
         # Truncate description if too long
@@ -101,7 +105,7 @@ def create_pdf(forks, username, output_filename='forks_report.pdf'):
         ])
     
     # Create table
-    table = Table(table_data, colWidths=[1.2*inch, 2.5*inch, 0.6*inch, 0.9*inch, 1.0*inch])
+    table = Table(table_data, colWidths=[1.2*inch, 2.5*inch, 0.8*inch, 0.9*inch, 1.2*inch])
     
     # Style table
     table.setStyle(TableStyle([
@@ -161,10 +165,11 @@ def create_pdf(forks, username, output_filename='forks_report.pdf'):
         
         # Details
         details = f"""
-        <b>URL:</b> {fork['url']}<br/>
+        <b>Your Fork URL:</b> {fork['url']}<br/>
+        <b>Original Repo URL:</b> {fork['original_url']}<br/>
         <b>Description:</b> {fork['description']}<br/>
-        <b>Stars:</b> {fork['stars']} | <b>Forks:</b> {fork['forks_count']} | <b>Open Issues:</b> {fork['open_issues']}<br/>
-        <b>Language:</b> {fork['language']} | <b>Created:</b> {fork['created_at']} | <b>Last Updated:</b> {fork['last_updated']}<br/>
+        <b>Stars (Original):</b> {fork['stars']} | <b>Forks (Original):</b> {fork['forks_count']} | <b>Open Issues (Original):</b> {fork['open_issues']}<br/>
+        <b>Language:</b> {fork['language']} | <b>Created:</b> {fork['created_at']} | <b>Last Updated (Original):</b> {fork['last_updated']}<br/>
         """
         
         elements.append(Paragraph(details, detail_style))
