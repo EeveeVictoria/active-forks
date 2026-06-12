@@ -37,14 +37,14 @@ def get_forks(username, token=None):
                 'description': repo.description or 'No description',
                 'stars': original_repo.stargazers_count,  # Stars from original repo
                 'language': repo.language or 'N/A',
-                'last_updated': original_repo.updated_at.strftime('%Y-%m-%d %H:%M:%S') if original_repo.updated_at else 'N/A',  # Last update from original repo
-                'created_at': repo.created_at.strftime('%Y-%m-%d') if repo.created_at else 'N/A',
+                'created_at': original_repo.created_at.strftime('%Y-%m-%d') if original_repo.created_at else 'N/A',  # Created from original repo
+                'fork_created_at': repo.created_at.strftime('%Y-%m-%d') if repo.created_at else 'N/A',
                 'forks_count': original_repo.forks_count,  # Forks from original repo
                 'open_issues': original_repo.open_issues_count,  # Issues from original repo
                 'original_url': original_repo.html_url,
             })
     
-    return sorted(forks, key=lambda x: x['last_updated'], reverse=True)
+    return sorted(forks, key=lambda x: x['created_at'], reverse=True)
 
 
 def create_pdf(forks, username, output_filename='forks_report.pdf'):
@@ -87,25 +87,36 @@ def create_pdf(forks, username, output_filename='forks_report.pdf'):
     elements.append(subtitle)
     elements.append(Spacer(1, 0.2*inch))
     
-    # Prepare table data
-    table_data = [['Repository', 'Description', 'Stars (Original)', 'Language', 'Last Updated (Original)']]
+    # Prepare table data with wrapped text
+    cell_style = ParagraphStyle(
+        'CellText',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10,
+        alignment=TA_LEFT
+    )
+    
+    table_data = [['Repository', 'Description', 'Stars\n(Original)', 'Language', 'Created\n(Original)']]
     
     for fork in forks:
         # Truncate description if too long
         desc = fork['description']
-        if len(desc) > 60:
-            desc = desc[:57] + '...'
+        if len(desc) > 50:
+            desc = desc[:47] + '...'
+        
+        # Create paragraph for description to handle wrapping
+        desc_para = Paragraph(desc, cell_style)
         
         table_data.append([
             fork['name'],
-            desc,
+            desc_para,
             str(fork['stars']),
             fork['language'],
-            fork['last_updated'].split(' ')[0]  # Date only
+            fork['created_at']
         ])
     
-    # Create table
-    table = Table(table_data, colWidths=[1.2*inch, 2.5*inch, 0.8*inch, 0.9*inch, 1.2*inch])
+    # Create table with adjusted column widths
+    table = Table(table_data, colWidths=[1.0*inch, 2.2*inch, 0.75*inch, 0.75*inch, 1.0*inch])
     
     # Style table
     table.setStyle(TableStyle([
@@ -113,27 +124,30 @@ def create_pdf(forks, username, output_filename='forks_report.pdf'):
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0366d6')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
         
         # Data rows
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
         ('ALIGN', (2, 1), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 1), (-1, -1), 'TOP'),
         ('LEFTPADDING', (0, 1), (-1, -1), 6),
         ('RIGHTPADDING', (0, 1), (-1, -1), 6),
-        ('TOPPADDING', (0, 1), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
         
         # Alternating row colors
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f6f8fa')]),
         
         # Grid
         ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#d1d5da')),
+        ('LEFTPADDING', (1, 0), (1, -1), 8),
+        ('RIGHTPADDING', (1, 0), (1, -1), 8),
     ]))
     
     elements.append(table)
@@ -148,7 +162,8 @@ def create_pdf(forks, username, output_filename='forks_report.pdf'):
         parent=styles['Normal'],
         fontSize=9,
         spaceAfter=4,
-        textColor=colors.HexColor('#24292e')
+        textColor=colors.HexColor('#24292e'),
+        leading=12
     )
     
     for i, fork in enumerate(forks, 1):
@@ -169,7 +184,7 @@ def create_pdf(forks, username, output_filename='forks_report.pdf'):
         <b>Original Repo URL:</b> {fork['original_url']}<br/>
         <b>Description:</b> {fork['description']}<br/>
         <b>Stars (Original):</b> {fork['stars']} | <b>Forks (Original):</b> {fork['forks_count']} | <b>Open Issues (Original):</b> {fork['open_issues']}<br/>
-        <b>Language:</b> {fork['language']} | <b>Created:</b> {fork['created_at']} | <b>Last Updated (Original):</b> {fork['last_updated']}<br/>
+        <b>Language:</b> {fork['language']} | <b>Original Created:</b> {fork['created_at']} | <b>Your Fork Created:</b> {fork['fork_created_at']}<br/>
         """
         
         elements.append(Paragraph(details, detail_style))
